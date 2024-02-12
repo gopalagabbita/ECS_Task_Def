@@ -1,0 +1,93 @@
+name: Create and Deploy ECS Task Definition
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-and-deploy:
+    runs-on: ubuntu-latest
+    inputs:
+      region:
+        description: 'AWS Region where the task definition will be created'
+        required: true
+      cluster:
+        description: 'ECS Cluster where the task definition will be deployed'
+        required: true
+      task-family:
+        description: 'Task definition family name'
+        required: true
+      network-mode:
+        description: 'ECS network mode (awsvpc or bridge)'
+        default: 'awsvpc'
+        required: true
+      container-name:
+        description: 'Name of the container within the task definition'
+        default: 'my-container'
+        required: true
+      image-uri:
+        description: 'URI of the container image'
+        required: true
+      cpu:
+        description: 'CPU units allocated to the container'
+        default: '256'
+        required: true
+      memory:
+        description: 'Memory allocated to the container (in MB)'
+        default: '512'
+        required: true
+      launch-type:
+        description: 'Launch type (EC2 or FARGATE)'
+        default: 'FARGATE'
+        required: true
+      ex-role:
+        description: 'ARN for the Execution role'
+        required: true
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js 16 (optional for custom scripts)
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Create ECS Task Definition
+        run: ./prep_task_def.sh
+        shell: bash
+        env:
+          INPUT_TASK_FAMILY: ${{ inputs.task_family }}
+          INPUT_NETWORK_MODE: ${{ inputs.network_mode }}
+          INPUT_CONTAINER_NAME: ${{ inputs.container_name }}
+          INPUT_IMAGE_URI: ${{ inputs.image_uri }}
+          INPUT_CPU: ${{ inputs.cpu }}
+          INPUT_MEMORY: ${{ inputs.memory }}
+          INPUT_LAUNCH_TYPE: ${{ inputs.launch_type }}
+          INPUT_PORT: ${{ inputs.port }}
+          INPUT_PROTOCOL: ${{ inputs.protocol }}
+          INPUT_APPPROTOCOL: ${{ inputs.appprotocol }}
+          INPUT_ENV_VARIABLE: ${{ inputs.env_variable }}
+          INPUT_EX_ROLE: ${{ inputs.ex_role }}
+
+      - name: Register Task Definition
+        id: register-task-definition
+        uses: aws-actions/amazon-ecs-register-task-definition@v1
+          with:
+            family: ${{ inputs.task_family }}
+            definition: task-definition.json
+            region: ${{ inputs.region }}
+
+      # - name: Deploy to Amazon ECS service
+      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #   with:
+      #     task-definition: task-definition.json
+      #     service: ${{ inputs.container_name }}
+      #     cluster: ${{ inputs.cluster }}
